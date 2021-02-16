@@ -18,7 +18,7 @@ export class UserController{
                     if (result)
                         res.status(HttpStatus.OK).send(result);
                     else
-                        res.status(HttpStatus.FORBIDDEN);
+                        res.sendStatus(HttpStatus.FORBIDDEN);
 
             })
         else
@@ -28,9 +28,12 @@ export class UserController{
         const { authorization } = req.headers;
         if (authorization){
             const accessToken:string=authorization.split(' ')[1];
-            UserModel.verifyUser(accessToken,(err,decode)=>{
+            UserModel.verifyUser(accessToken, ( err,decode )=>{
                 if (err)
-                    res.status(HttpStatus.UNAUTHORIZED);
+                    res.status(HttpStatus.UNAUTHORIZED).send({
+                        code : HttpStatus.UNAUTHORIZED,
+                        message: "Не авторизован"
+                    });
                 else
                     res.status(HttpStatus.OK).send(decode);
             });
@@ -42,7 +45,7 @@ export class UserController{
         console.log("registry");
         const { login,password } =req.body;
         if (login && password && login.length>0 && password.length>0)
-            UserModel.registerUser({login,password},(err,result) =>{
+            UserModel.registerUser({login, password}, (err, result) => {
                 if (err){
                     if (err.code === PGErrors.UNIQUE_VIOLATION)
                         res.status(HttpStatus.INTERNAL_SERVER_ERROR).send(LOGIN_ALREADY_EXISTS_ERROR);

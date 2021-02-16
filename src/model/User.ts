@@ -29,6 +29,7 @@ export class UserModel{
                                             }
                                         });
         });
+
     }
     public static userRoleQuery(userId:number,
                                 callback:(err:Error|null,result:UserRole|null)=>void):void
@@ -92,10 +93,12 @@ export class UserModel{
                                             accessToken
                                         });
                                     }
-                                    else
+                                    else{
+                                        console.log("NOT RESULT");
                                         callback(null,null);
+                                    }
                                 }
-                            })
+                            });
     }
     public static verifyUser(accessToken:string,callback:(err:Error|null,result:UserData|null)=>void):void{
         console.log("VERIFY");
