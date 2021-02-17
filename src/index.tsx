@@ -1,6 +1,7 @@
 import express,{Express,Request,Response} from 'express';
 import { UserModel} from './model/User';
 import userRouter from './router/UserRouter';
+import { GroupModel } from './model/Group';
 
 const app:Express=express();
 
@@ -14,7 +15,6 @@ app.use(express.json({
 }));
 
 app.use("/auth",userRouter);
-
 
 
 app.listen(8080,()=>{

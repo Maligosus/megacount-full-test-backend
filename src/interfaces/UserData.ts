@@ -4,7 +4,7 @@ import { UserRole } from "./UserRole";
 export interface UserData{
     id?:number;
     login:string;
-    password:string;
+    password?:string;
     role?:UserRole;
 }
 

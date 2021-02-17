@@ -1,8 +1,9 @@
+import { UserData } from "./UserData";
 
 
-interface GroupData{
+export interface GroupData{
     id?:number;
     groupName:string;
     ownerId:number;
-    
+    groupMembers?:UserData[];
 };

@@ -51,6 +51,7 @@ export class UserModel{
     public static registerUser(newUser:UserData,
                                 callback:(err:Error|null|any,result:any|null)=>void):void
     {
+        if (newUser.password)
         connection.query(`insert into "Users" (login,password,"roleId") values($1,$2,$3) RETURNING "id"`
                         ,[newUser.login,md5(newUser.password),UserRoleConstants.USER],(err,res)=>{
                                 if (err){
@@ -60,6 +61,8 @@ export class UserModel{
                                 else
                                     callback(null,res.rows[0].id);
                         });
+        else
+                callback(null,null);
     }
     public static loginUser(login:string,
                             password:string,
