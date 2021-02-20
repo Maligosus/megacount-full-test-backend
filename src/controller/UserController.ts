@@ -11,11 +11,11 @@ import { UserRoleConstants } from '../interfaces/UserRole';
 export class UserController{
     public static async loginUser(req:Request,res:Response):Promise<void>{
         console.log("login");
-        
-        const { login,password } = req.body as UserData;
+        const { login,password } = req.body;
         if (login && password && login.length>0 && password.length>0)
                 try{
                         const loginResult = await UserModel.loginUser(login,password);
+                        console.log(loginResult);
                         res.status(HttpStatus.OK).send(loginResult);
                 }
                 catch(err){
@@ -38,7 +38,7 @@ export class UserController{
             try{
                 const token:string = authorization.split(' ')[1];
                 const user = await UserModel.verifyUser(token);
-                res.status(HttpStatus.OK)
+                res.status(HttpStatus.OK).send(user);
             }
             catch(err){
                 res.sendStatus(HttpStatus.UNAUTHORIZED);

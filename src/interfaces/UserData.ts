@@ -6,5 +6,6 @@ export interface UserData{
     login:string;
     password?:string;
     role:UserRole;
+    accessToken?:string;
 }
 

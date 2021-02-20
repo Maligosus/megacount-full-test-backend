@@ -10,11 +10,13 @@ const roter:Router=express.Router();
 
 router.use(AuthMiddleware);
 
-router.get("/owner/:ownerId",GroupController.getGroupsByOwner);
+router.get("/owner",GroupController.getGroupsByOwner);
 
 router.post("/create",GroupController.createGroupByUser);
 
-router.post("/delete/current",checkGroupOwnerMiddleWare,GroupController.deleteUserGroup);
+router.post("/delete/current",GroupController.deleteUserGroup);
+
+router.get("/currents",GroupController.getAllUserGroups);
 
 router.post("/enter",GroupController.enterUserToGroup);
 

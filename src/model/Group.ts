@@ -7,24 +7,13 @@ import { HttpStatus } from '../helpers/http-status';
 
 export class GroupModel{
     public static async getGroupsByOwner(ownerId:number):Promise<GroupData[]>{
-        const queryString:string =`SELECT "Groups".*,"Users".id,"Users".login,"Users"."roleId","UserRoles"."roleName"`+
-                                    ` FROM "Groups" RIGHT JOIN "Users"`+
-                                    ` ON "Groups"."ownerId"="Users".id RIGHT JOIN "UserRoles"`+
-                                    ` ON "Users"."roleId"="UserRoles"."roleId"`+
-                                    ` WHERE "Groups"."ownerId"=$1`;
+        const queryString:string =`SELECT * FROM "Groups"  WHERE "Groups"."ownerId"=$1`;
         const result = await connection.query(queryString,[ownerId]);
         const newGroupData:GroupData[] = [];
         await Promise.all(result.rows.map(async row=>{
             newGroupData.push({
                 name : row.name,
-                owner : {
-                    id : row.ownerId,
-                    role : {
-                        roleId : row.roleId,
-                        roleName : row.roleName,                      
-                    },
-                    login : row.login,
-                },
+                owner : await this.getGroupOwner(row.groupId),
                 groupMembers : await this.getAllGroupMembers(row.groupId),
                 id : row.groupId
             })
@@ -58,8 +47,6 @@ export class GroupModel{
         return result.rows.length;
     }
     public static async getAllGroupMembers(groupId:number):Promise<UserData[]>{
-        console.log("getMembers");
-        console.log("groupId="+groupId);
         const queryString:string=`SELECT "Users".id,`+ 
                                   `"Users".login,`+
                                   `"Users"."roleId",`+
@@ -71,7 +58,7 @@ export class GroupModel{
 
         const result = await connection.query(queryString,[groupId]);
         const newUserData:UserData[] = [];
-        result.rows.map(user=>{
+        result.rows.forEach(user=>{
             newUserData.push({
                 login: user.login,
                 id: user.id,
@@ -91,19 +78,21 @@ export class GroupModel{
         ` ON "Users"."roleId" = "UserRoles"."roleId"`;
         const result = await connection.query(queryString);
         const newGroupData:GroupData[] = [];
-        result.rows.map(row=>newGroupData.push({
-            name: row.name,
-            id:row.groupId,
-            owner:{
-                id : row.id,
-                login : row.login,
-                role : {
-                    roleId: row.roleId,
-                    roleName: row.roleName
-                }
-            }
+        await Promise.all(result.rows.map(async row=>{
+            newGroupData.push({
+                name : row.name,
+                owner : {
+                    id : row.ownerId,
+                    role : {
+                        roleId : row.roleId,
+                        roleName : row.roleName,                      
+                    },
+                    login : row.login,
+                },
+                groupMembers : await this.getAllGroupMembers(row.groupId),
+                id : row.groupId
+            })
         }));
-        console.log(result);
         return newGroupData;
     }
     public static async getGroupOwner(groupId:number):Promise<UserData>{
@@ -111,18 +100,36 @@ export class GroupModel{
         ` RIGHT JOIN "Users" ON "Groups"."ownerId" = "Users".id`+
         ` WHERE "Groups"."groupId"=$1`;
         const result = await connection.query(queryString,[groupId]);
-        if (!result.rowCount)
+        if (!result.rowCount) {
             return Promise.reject({
                 code : HttpStatus.NOT_FOUND,
                 message: "Group not found"
             })
-            return {
-                login : result.rows[0].login,
-                role : {
-                    roleId : result.rows[0].id,
-                    roleName : result.rows[0].roleName
-                },
-                id : result.rows[0].id
-            };
+        }
+
+        return {
+            login : result.rows[0].login,
+            role : {
+                roleId : result.rows[0].id,
+                roleName : result.rows[0].roleName
+            },
+            id : result.rows[0].id
+        };
+    }
+    public static async getAllUserGroups(userId:number) : Promise<GroupData[]>{
+        const queryString:string = `SELECT "Groups".* FROM "GroupMembers" RIGHT JOIN "Groups"` +
+                                    ` ON "GroupMembers"."groupId" = "Groups"."groupId"`+
+                                    ` WHERE "GroupMembers"."userId" =$1`;
+        const newGroupData:GroupData[]=[];
+        const result = await connection.query(queryString,[userId]);
+        await Promise.all(result.rows.map(async row=>{
+            newGroupData.push({
+                name : row.name,
+                owner : await this.getGroupOwner(row.groupId),
+                groupMembers : await this.getAllGroupMembers(row.groupId),
+                id: row.groupId
+            });
+        }));
+        return newGroupData;
     }
 }   

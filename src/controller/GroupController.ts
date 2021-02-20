@@ -5,19 +5,15 @@ import { PGErrors } from '../helpers/constants';
 import { UserModel } from '../model/User';
 import { GroupData } from '../interfaces/GroupData';
 import { UserData } from '../interfaces/UserData';
+import { UserRoleConstants } from '../interfaces/UserRole';
 
 
 export class GroupController{
     public static async getGroupsByOwner(req:Request,res:Response):Promise<void>{
-        console.log("get by owner");
-        const { ownerId } = req.params;
-        console.log(ownerId);
+        const { user } = req.body;
         try{
-            const groups:GroupData[] = await GroupModel.getGroupsByOwner(parseInt(ownerId));
-            if (groups.length > 0)
-                    res.status(HttpStatus.OK).send(groups);
-            else
-                res.sendStatus(HttpStatus.NOT_FOUND);
+            const groups:GroupData[] = await GroupModel.getGroupsByOwner(user.id);
+            res.status(HttpStatus.OK).send(groups);
         }
         catch(err){
             console.log(err);
@@ -27,7 +23,7 @@ export class GroupController{
     public static async createGroupByUser(req:Request,res:Response):Promise<void>{
         const { groupName, user } = req.body;
         try{
-            await GroupModel.createGroupByOwner(groupName,user.id)
+            await GroupModel.createGroupByOwner(groupName,user.id);
             res.sendStatus(HttpStatus.OK);
         }
         catch(err){
@@ -35,6 +31,17 @@ export class GroupController{
                 res.sendStatus(HttpStatus.CONFLICT);
             else
                 res.sendStatus(HttpStatus.FORBIDDEN);
+        }
+    }
+    public static async getAllUserGroups(req:Request,res:Response):Promise<void>{
+        const { user } = req.body;
+        try{
+            const result = await GroupModel.getAllUserGroups(user.id);
+            res.status(HttpStatus.OK).send(result);
+        }
+        catch(err){
+            console.log(err.message);
+            res.status(HttpStatus.INTERNAL_SERVER_ERROR).send(err);
         }
     }
     public static deleteAllGroupsByOwner(req:Request,res:Response):void{
@@ -47,13 +54,15 @@ export class GroupController{
         const { groupId, user } = req.body;
         try{
                 const owner:UserData = await GroupModel.getGroupOwner(groupId);
-                if (owner.id === user.id){
+                if (owner.id === user.id || user.role.roleId===UserRoleConstants.ADMIN){
                         const countAffected:number = await GroupModel.deleteGroupById(groupId);
                         if (countAffected > 0)
                             res.sendStatus(HttpStatus.OK);
                         else
                             res.sendStatus(HttpStatus.NOT_FOUND);
                 }
+                else
+                    res.sendStatus(HttpStatus.FORBIDDEN);
         }
         catch(err){
             if (err.code === HttpStatus.NOT_FOUND)

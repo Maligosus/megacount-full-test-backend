@@ -60,42 +60,12 @@ export class UserModel{
                 throw new Error("password or login must not be empty");
     }
     public static async loginUser(login:string,
-                            password:string):Promise<{user:UserData,accessToken:string}>
+                            password:string):Promise<UserData>
     {
         const result = await connection.query(`select * from "Users" 
                         inner join "UserRoles" ON "Users"."roleId" = "UserRoles"."roleId" 
                         where login=$1 and password=$2`,
-                            [login,md5(password)]/*,(err,res)=>{
-                                if (err)
-                                    callback(err,null);
-                                else{
-                                    if (res.rows.length !==0)
-                                    {
-                                        console.log(res.rows);
-                                        const accessToken:string=jwt.sign({
-                                            id : res.rows[0].id,
-                                            roleId: res.rows[0].roleId,
-                                            login: res.rows[0].login,
-                                            roleName: res.rows[0].roleName
-                                        },this.secretSignature,{
-                                            expiresIn:"14h",
-                                        });
-                                        callback(null,{
-                                            id : res.rows[0].id,
-                                            login: res.rows[0].login,
-                                            role:{
-                                                roleId: res.rows[0].roleId,
-                                                roleName: res.rows[0].roleName
-                                            },
-                                            accessToken
-                                        });
-                                    }
-                                    else{
-                                        console.log("NOT RESULT");
-                                        callback(null,null);
-                                    }
-                                }
-                            }*/);
+                            [login,md5(password)]);
         if (!result.rows.length)
                 return Promise.reject({
                     code : HttpStatus.NOT_FOUND,
@@ -108,15 +78,13 @@ export class UserModel{
             roleName: result.rows[0].roleName
         },this.secretSignature);
         return {
-            user:{
                 id : result.rows[0].id,
                 login: result.rows[0].login,
                 role: {
                     roleId : result.rows[0].roleId,
                     roleName: result.rows[0].roleName
-                }
-            },
-            accessToken
+                },
+                accessToken 
         };
     }
     public static verifyUser(accessToken:string):Promise<UserData>{
