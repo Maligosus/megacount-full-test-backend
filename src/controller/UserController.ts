@@ -5,59 +5,60 @@ import express,{ Request,Response,RequestHandler} from 'express';
 import { HttpStatus } from '../helpers/http-status';
 import { PGErrors } from '../helpers/constants';
 import { LOGIN_ALREADY_EXISTS_ERROR, UNKNOWN_ERROR } from '../helpers/app-errors';
+import { UserRoleConstants } from '../interfaces/UserRole';
 
 
 export class UserController{
-    public static loginUser(req:Request,res:Response):void{
+    public static async loginUser(req:Request,res:Response):Promise<void>{
+        console.log("login");
+        
         const { login,password } = req.body as UserData;
         if (login && password && login.length>0 && password.length>0)
-            UserModel.loginUser(login,password,(err,result)=>{
-                if (err)
-                    res.sendStatus(HttpStatus.NOT_IMPLEMENTED);
-                else
-                    if (result)
-                        res.status(HttpStatus.OK).send(result);
-                    else
+                try{
+                        const loginResult = await UserModel.loginUser(login,password);
+                        res.status(HttpStatus.OK).send(loginResult);
+                }
+                catch(err){
+                    if (err.code === HttpStatus.NOT_FOUND)
                         res.sendStatus(HttpStatus.FORBIDDEN);
-
-            })
-        else
-            res.sendStatus(HttpStatus.NO_CONTENT);
-    }
-    public static verifyUser(req:Request,res:Response):void{
-        const { authorization } = req.headers;
-        if (authorization){
-            const accessToken:string=authorization.split(' ')[1];
-            UserModel.verifyUser(accessToken, ( err,decode )=>{
-                if (err)
-                    res.status(HttpStatus.UNAUTHORIZED).send({
-                        code : HttpStatus.UNAUTHORIZED,
-                        message: "Не авторизован"
-                    });
-                else
-                    res.status(HttpStatus.OK).send(decode);
+                    else
+                        res.sendStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+        else{
+            console.log("NO CONTENT");
+            res.status(HttpStatus.NO_CONTENT).send({
+                code : HttpStatus.NO_CONTENT,
+                message: " User or password must be non-empty"
             });
         }
+    }
+    public static async verifyUser(req:Request,res:Response):Promise<void>{
+        const { authorization } = req.headers;
+        if (authorization)
+            try{
+                const token:string = authorization.split(' ')[1];
+                const user = await UserModel.verifyUser(token);
+                res.status(HttpStatus.OK)
+            }
+            catch(err){
+                res.sendStatus(HttpStatus.UNAUTHORIZED);
+            }
         else
-            res.status(HttpStatus.UNAUTHORIZED);
+            res.sendStatus(HttpStatus.UNAUTHORIZED);
     }
     public static registryUser(req:Request,res:Response):void{
         console.log("registry");
         const { login,password } =req.body;
         if (login && password && login.length>0 && password.length>0)
-            UserModel.registerUser({login, password}, (err, result) => {
-                if (err){
-                    if (err.code === PGErrors.UNIQUE_VIOLATION)
-                        res.status(HttpStatus.INTERNAL_SERVER_ERROR).send(LOGIN_ALREADY_EXISTS_ERROR);
-                    else
-                        res.status(HttpStatus.INTERNAL_SERVER_ERROR).send(err);
-                }
+            UserModel.registerUser(login,password).then(()=>{
+                res.sendStatus(HttpStatus.OK);
+            })
+            .catch(err=>{
+                if (err.code === PGErrors.UNIQUE_VIOLATION)
+                    res.sendStatus(HttpStatus.CONFLICT);
                 else
-                    res.status(HttpStatus.OK).send({
-                        "message" : "OK"
-                    });
-                
-        });
+                    res.sendStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+            });
         else
             res.status(HttpStatus.NO_CONTENT);
     }

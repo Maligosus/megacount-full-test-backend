@@ -4,74 +4,68 @@ import connection from '../helpers/pg-connection';
 import md5 from 'md5';
 import pg from 'pg';
 import jwt from "jsonwebtoken";
+import { HttpStatus } from "../helpers/http-status";
 
 
 
 
 export class UserModel{
     static secretSignature="254-Megacount-5481";
-    public static userDataQuery(userId:number,
-                                callback:(err:Error|null,result:any)=>void):void
+    public static async userDataQuery(userId:number):Promise<UserData>
     {
-        connection.query(`select * from "Users" inner join "UserRoles" on "`+
+      const result = await connection.query(`select * from "Users" inner join "UserRoles" on "`+
                             `Users"."roleId" = "UserRoles".id`+ `
-                            WHERE "Users".id=$1`,[userId],(err,res)=>{
-                                    if (err)
-                                        callback(err,null);
-                                    else
-                                        callback(null,{
-                                            id: res.rows[0].id,
-                                            login: res.rows[0].login,
-                                            password: res.rows[0].password,
-                                            role :{
-                                                roleId : res.rows[0].roleId,
-                                                roleName: res.rows[0].roleName
-                                            }
-                                        });
+                            WHERE "Users".id=$1`,[userId]);
+        return new Promise((resolve,reject)=>{
+            if (result.rowCount)
+                resolve({
+                    login : result.rows[0].id,
+                    id: result.rows[0].id,
+                    password : result.rows[0].password,
+                    role :{
+                        roleId: result.rows[0].roleId,
+                        roleName: result.rows[0].roleName
+                    }
+                });
+                else
+                    reject({
+                        code : HttpStatus.NOT_FOUND,
+                        message:"User not found"
+                    });
         });
 
     }
-    public static userRoleQuery(userId:number,
-                                callback:(err:Error|null,result:UserRole|null)=>void):void
+    public static async userRoleQuery(userId:number):Promise<UserRole>
     {
-        connection.query(`select "UserRoles".id,"UserRoles"."roleName" from "UserRoles" `+
+      const result = await connection.query(`select "UserRoles".id,"UserRoles"."roleName" from "UserRoles" `+
                             `left join "Users" on "UserRoles".id="Users"."roleId" `+
-                            `where "Users".id=$1`,[userId],(err,res)=>{
-                                if (err)
-                                    callback(err,null);
-                                else
-                                    callback(null,{
-                                        roleId: res.rows[0].id,
-                                        roleName: res.rows[0].roleName
-                                    })
-                                
-                            });
+                            `where "Users".id=$1`,[userId]);
+       return {
+                    roleId:result.rows[0].id,
+                    roleName: result.rows[0].roleName
+            };
                         
     }
-    public static registerUser(newUser:UserData,
-                                callback:(err:Error|null|any,result:any|null)=>void):void
+    public static async registerUser(login:string,password:string):Promise<void>
     {
-        if (newUser.password)
-        connection.query(`insert into "Users" (login,password,"roleId") values($1,$2,$3) RETURNING "id"`
-                        ,[newUser.login,md5(newUser.password),UserRoleConstants.USER],(err,res)=>{
-                                if (err){
-                                    console.log(err);
-                                    callback(err,null);
-                                }
-                                else
-                                    callback(null,res.rows[0].id);
-                        });
-        else
-                callback(null,null);
+            if (password.length > 0 && login.length >0){
+                try{
+                    const queryString:string=`insert into "Users" (login,password,"roleId") values ($1,$2,$3) `; 
+                    await connection.query(queryString,[login,md5(password),UserRoleConstants.USER]);
+                }catch(err){
+                    return Promise.reject(err);
+                }
+            }
+            else
+                throw new Error("password or login must not be empty");
     }
-    public static loginUser(login:string,
-                            password:string,
-                            callback:(err:Error|null|any,result:any)=>void):void
+    public static async loginUser(login:string,
+                            password:string):Promise<{user:UserData,accessToken:string}>
     {
-        connection.query(`select * from "Users" 
-                        inner join "UserRoles" ON "Users"."roleId" = "UserRoles".id 
+        const result = await connection.query(`select * from "Users" 
+                        inner join "UserRoles" ON "Users"."roleId" = "UserRoles"."roleId" 
                         where login=$1 and password=$2`,
-                            [login,md5(password)],(err,res)=>{
+                            [login,md5(password)]/*,(err,res)=>{
                                 if (err)
                                     callback(err,null);
                                 else{
@@ -101,18 +95,48 @@ export class UserModel{
                                         callback(null,null);
                                     }
                                 }
-                            });
+                            }*/);
+        if (!result.rows.length)
+                return Promise.reject({
+                    code : HttpStatus.NOT_FOUND,
+                    message : "Incorrect password or login"
+                })
+        const accessToken:string=jwt.sign({
+            id : result.rows[0].id,
+            roleId: result.rows[0].roleId,
+            login: result.rows[0].login,
+            roleName: result.rows[0].roleName
+        },this.secretSignature);
+        return {
+            user:{
+                id : result.rows[0].id,
+                login: result.rows[0].login,
+                role: {
+                    roleId : result.rows[0].roleId,
+                    roleName: result.rows[0].roleName
+                }
+            },
+            accessToken
+        };
     }
-    public static verifyUser(accessToken:string,callback:(err:Error|null,result:UserData|null)=>void):void{
-        console.log("VERIFY");
-        console.log("VERIFY_TOKEN="+accessToken);
-        jwt.verify(accessToken,this.secretSignature ,(err,decode)=>{
-            if (err)
-                callback(err,null);
-            else{
-                console.log(decode);
-                callback(null,decode as UserData);
-            }
+    public static verifyUser(accessToken:string):Promise<UserData>{
+        return new Promise((resolve,reject)=>{
+            jwt.verify(accessToken,this.secretSignature,(err,decode:any)=>{
+                if (err){
+                    console.log(err.message);
+                    reject(err);
+                }
+                else if (decode){
+                    resolve({
+                        id : decode.id,
+                        login: decode.login,
+                        role :{
+                            roleId : decode.roleId,
+                            roleName : decode.roleName,
+                        }
+                    })
+                };
+            });
         })
     }
 }
