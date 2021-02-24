@@ -48,9 +48,15 @@ export class UserController{
     }
     public static registryUser(req:Request,res:Response):void{
         console.log("registry");
-        const { login,password } =req.body;
+        const { login,password,confirmPassword } =req.body;
+        console.log(req.body);
+        if (password!=confirmPassword){
+            res.sendStatus(HttpStatus.FORBIDDEN);
+            return;
+        }
         if (login && password && login.length>0 && password.length>0)
-            UserModel.registerUser(login,password).then(()=>{
+            UserModel.registerUser(login,password)
+            .then(()=>{
                 res.sendStatus(HttpStatus.OK);
             })
             .catch(err=>{
@@ -59,8 +65,8 @@ export class UserController{
                 else
                     res.sendStatus(HttpStatus.INTERNAL_SERVER_ERROR);
             });
-        else
-            res.status(HttpStatus.NO_CONTENT);
+        else if (login.length===0 || password.length===0)
+            res.sendStatus(HttpStatus.NO_CONTENT);    
     }
 
 }

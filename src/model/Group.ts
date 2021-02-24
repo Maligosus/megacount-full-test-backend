@@ -31,7 +31,7 @@ export class GroupModel{
             return result.rows.length;
     }
     public static async deleteGroupById(groupNumber:number):Promise<number>{
-        const queryString:string=`DELETE FROM "Groups" WHERE id=$1 returning *`;
+        const queryString:string=`DELETE FROM "Groups" WHERE "groupId"=$1 returning *`;
             const result = await connection.query(queryString,[groupNumber]);
             console.log(result);
             return result.rows.length;

@@ -22,6 +22,8 @@ router.post("/enter",GroupController.enterUserToGroup);
 
 router.post("/leave",GroupController.leaveUserFromGroup);
 
+router.post("/deleteuser",GroupController.removeUserFromGroup);
+
 router.get("/:groupId/members",GroupController.getAllGroupMembers);
 
 router.get("/all",GroupController.getAllGroups);

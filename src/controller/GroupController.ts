@@ -52,6 +52,7 @@ export class GroupController{
     }
     public static async deleteUserGroup(req:Request,res:Response):Promise<void>{
         const { groupId, user } = req.body;
+        console.log("DELETE GROUP");
         try{
                 const owner:UserData = await GroupModel.getGroupOwner(groupId);
                 if (owner.id === user.id || user.role.roleId===UserRoleConstants.ADMIN){
@@ -65,9 +66,7 @@ export class GroupController{
                     res.sendStatus(HttpStatus.FORBIDDEN);
         }
         catch(err){
-            if (err.code === HttpStatus.NOT_FOUND)
-                res.sendStatus(HttpStatus.NOT_FOUND);
-            else
+                console.log(err);
                 res.sendStatus(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -112,6 +111,26 @@ export class GroupController{
         .catch((err)=>{
             console.log(err.message);
             res.sendStatus(HttpStatus.INTERNAL_SERVER_ERROR)});
+    }
+    public static async removeUserFromGroup(req:Request,res:Response):Promise<void>{
+        const { userId ,user,groupId } = req.body;
+        try{
+            const owner:UserData = await GroupModel.getGroupOwner(groupId);
+            if (user.id === owner.id || user.role.roleId === UserRoleConstants.ADMIN){
+               const countAffected:number = await GroupModel.removeUserFromGroup(userId,groupId);
+               if (countAffected>0){
+                    const newGroupMembers:UserData[] = await GroupModel.getAllGroupMembers(groupId);
+                    res.status(HttpStatus.OK).send(newGroupMembers);
+               }
+                else
+                    res.sendStatus(HttpStatus.NOT_FOUND);
+            }
+            else
+                res.sendStatus(HttpStatus.FORBIDDEN);
+        }
+        catch(err){
+            res.sendStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 }
 
